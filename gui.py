@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import (
     QVBoxLayout, QWidget, QLabel, QHBoxLayout, QMessageBox
 )
 from PyQt5.QtGui import QTextCharFormat, QColor
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import QTimer
 from parser import LogProcessingThread
 from utils import CustomProgressDialog
 from filters import LogFilter
@@ -12,16 +12,13 @@ class LogViewer(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        # Initialize essential attributes first
         self.full_logs = []
         self.level_counts = {level: 0 for level in ["INFO", "WARNING", "ERROR", "CRITICAL", "DEBUG"]}
         self.text_edit = None
         self.log_filter = None
 
-        # Initialize UI components
         self.initUI()
 
-        # Initialize log_filter after text_edit is created
         self.initialize_log_filter()
 
         self.center()
@@ -30,7 +27,6 @@ class LogViewer(QMainWindow):
         self.setWindowTitle('Checkbox Kasa Log Viewer v0.0.3')
         self.setGeometry(100, 100, 1200, 800)
 
-        # Initialize widgets
         self.text_edit = QTextEdit(self)
         self.text_edit.setReadOnly(True)
         self.text_edit.setStyleSheet("background-color: #E0E0E0; color: #000; font-size: 12pt;")
@@ -42,7 +38,6 @@ class LogViewer(QMainWindow):
         self.stats_label = QLabel(self)
         self.stats_label.setStyleSheet("font-size: 16px; padding: 5px;")
 
-        # Show initial statistics with zero counts
         self.update_statistics()
 
         button_colors = {
@@ -151,7 +146,7 @@ class LogViewer(QMainWindow):
 
     def process_logs(self):
         self.text_edit.clear()
-        self.level_counts = {level: 0 for level in self.level_counts}  # Сброс статистики
+        self.level_counts = {level: 0 for level in self.level_counts}
 
         if not self.thread.logs:
             print("DEBUG: No logs loaded. self.thread.logs is empty.")
@@ -159,7 +154,7 @@ class LogViewer(QMainWindow):
 
         self.full_logs = self.thread.logs.copy()
         print(f"DEBUG: Logs loaded: {len(self.full_logs)} entries")
-        self.log_filter.full_logs = self.full_logs  # Обновляем данные в фильтре
+        self.log_filter.full_logs = self.full_logs
         self.log_filter.current_log_index = 0
         self.log_filter.total_logs = len(self.full_logs)
 
@@ -168,7 +163,6 @@ class LogViewer(QMainWindow):
     def process_next_batch(self):
         if self.log_filter.current_log_index >= self.log_filter.total_logs:
             self.hide_update_progress_dialog()
-            # Обновление статистики после завершения обработки всех логов
             self.update_statistics()
             return
 

@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 
 from PyQt5.QtWidgets import QDialog, QProgressBar, QLabel, QVBoxLayout
-from PyQt5.QtGui import QColor, QTextCharFormat
+from PyQt5.QtGui import QColor
 from PyQt5.QtCore import Qt
 
 class CustomProgressDialog(QDialog):

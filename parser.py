@@ -1,7 +1,5 @@
 from PyQt5.QtCore import QThread, pyqtSignal
 import time
-import json
-
 from PyQt5.QtWidgets import QApplication
 from utils import parse_log
 
