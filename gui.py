@@ -1,120 +1,11 @@
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QTextEdit, QPushButton, QFileDialog,
-    QVBoxLayout, QWidget, QMessageBox, QLabel, QHBoxLayout, QDialog, QProgressBar
+    QVBoxLayout, QWidget, QLabel, QHBoxLayout, QDialog, QProgressBar, QMessageBox
 )
 from PyQt5.QtGui import QTextCharFormat, QColor, QTextCursor
 from PyQt5.QtCore import QThread, pyqtSignal, Qt, QTimer
-import json
-from datetime import datetime
-import sys
-import time
-
-
-class CustomProgressDialog(QDialog):
-    def __init__(self, title, message, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle(title)
-        self.setStyleSheet("background-color: #E0E0E0;")
-        self.setFixedSize(300, 100)
-
-        self.progress_bar = QProgressBar(self)
-        self.progress_bar.setAlignment(Qt.AlignCenter)
-        self.progress_bar.setMaximum(100)
-        self.progress_bar.setMinimum(0)
-        self.progress_bar.setValue(0)
-        self.progress_bar.setTextVisible(True)
-        self.progress_bar.setStyleSheet(
-            "QProgressBar {border: 2px solid gray; border-radius: 5px; padding: 1px; text-align: center;}"
-            "QProgressBar::chunk {background: #4CAF50; width: 20px;}"
-        )
-
-        layout = QVBoxLayout()
-        layout.addWidget(QLabel(message, self))
-        layout.addWidget(self.progress_bar)
-        self.setLayout(layout)
-
-
-class LogProcessingThread(QThread):
-    progress = pyqtSignal(int)
-    finished = pyqtSignal()
-    error = pyqtSignal(str)
-
-    def __init__(self, file_path, parent=None):
-        super().__init__(parent)
-        self.file_path = file_path
-        self.logs = []
-
-    def run(self):
-        try:
-            start_time = time.time()
-            with open(self.file_path, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
-            
-            total_lines = len(lines)
-            for idx, line in enumerate(lines):
-                if line.strip():
-                    log_parts, level = parse_log(line.strip())
-                    self.logs.append((log_parts, level))
-                self.progress.emit(int(((idx + 1) / total_lines * 50) + 0))
-                QApplication.processEvents()
-            
-            self.finished.emit()
-            end_time = time.time()
-            
-        except Exception as e:
-            self.error.emit(str(e))
-
-
-def format_timestamp(timestamp_str):
-    if timestamp_str.endswith('Z'):
-        timestamp_str = timestamp_str[:-1] + '+00:00'
-    try:
-        dt = datetime.fromisoformat(timestamp_str)
-        return dt.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-    except ValueError:
-        return timestamp_str
-
-
-def parse_log(log_str):
-    try:
-        log = json.loads(log_str)
-        record = log.get('record', {})
-        timestamp = format_timestamp(record.get('time', {}).get('repr', 'Unknown time'))
-        level = record.get('level', {}).get('name', 'UNKNOWN')
-        message = record.get('message', 'No message')
-
-        level_formats = {
-            "INFO": (QColor('green'), QColor('#E0E0E0')),
-            "WARNING": (QColor('white'), QColor('#FFA500')),
-            "ERROR": (QColor('white'), QColor('red')),
-            "CRITICAL": (QColor('white'), QColor('magenta')),
-            "DEBUG": (QColor('#00B2FF'), QColor('#E0E0E0'))
-        }
-        fg_color, bg_color = level_formats.get(level, (QColor('black'), QColor('#E0E0E0')))
-
-        output_parts = [
-            ("Timestamp: ", QColor('blue'), QColor('#E0E0E0')),
-            (f"{timestamp}\n", QColor('black'), QColor('#E0E0E0')),
-            ("Level: ", QColor('blue'), QColor('#E0E0E0')),
-            (f"{level}\n", fg_color, bg_color),
-            ("Message: ", QColor('blue'), QColor('#E0E0E0')),
-            (f"{message}\n", QColor('black'), QColor('#E0E0E0'))
-        ]
-
-        extra = record.get('extra', {})
-        if extra:
-            for key, value in extra.items():
-                output_parts.extend([
-                    (f"  {key}: ", QColor('blue'), QColor('#E0E0E0')),
-                    (json.dumps(value, indent=4, ensure_ascii=False) + "\n", QColor('black'), QColor('#E0E0E0'))
-                ])
-
-        return output_parts, level
-    except (json.JSONDecodeError, KeyError) as e:
-        return [(f"Error parsing log string: {e}", QColor('red'), QColor('#E0E0E0'))], 'ERROR'
-    except Exception as e:
-        return [(f"An unexpected error occurred: {e}", QColor('red'), QColor('#E0E0E0'))], 'ERROR'
-
+from parser import LogProcessingThread
+from utils import CustomProgressDialog, format_timestamp, parse_log
 
 class LogViewer(QMainWindow):
     def __init__(self):
@@ -126,7 +17,7 @@ class LogViewer(QMainWindow):
         self.center()
 
     def initUI(self):
-        self.setWindowTitle('Checkbox Kasa Log Viewer v0.0.2')
+        self.setWindowTitle('Checkbox Kasa Log Viewer v0.0.3')
         self.setGeometry(100, 100, 1200, 800)
 
         self.text_edit = QTextEdit(self)
@@ -181,8 +72,7 @@ class LogViewer(QMainWindow):
 
     def create_button(self, text, handler, color):
         button = QPushButton(text, self)
-        button.setStyleSheet(
-            f"background-color: {color}; color: white; font-size: 14pt; padding: 5px; border-radius: 5px;")
+        button.setStyleSheet(f"background-color: {color}; color: white; font-size: 14pt; padding: 5px; border-radius: 5px;")
         button.clicked.connect(handler)
         return button
 
@@ -215,8 +105,7 @@ class LogViewer(QMainWindow):
         self.process_logs()
 
     def show_update_progress_dialog(self):
-        self.update_progress_dialog = CustomProgressDialog("Updating Display", "Updating log display, please wait...",
-                                                           self)
+        self.update_progress_dialog = CustomProgressDialog("Updating Display", "Updating log display, please wait...", self)
         self.update_progress_dialog.show()
         QApplication.processEvents()
 
@@ -227,10 +116,12 @@ class LogViewer(QMainWindow):
     def process_logs(self):
         self.text_edit.clear()
         self.full_logs.clear()
-        self.level_counts = {level: 0 for level in self.level_counts}
+        self.reset_statistics()  # Сброс статистики перед подсчетом
 
+        total_logs = len(self.thread.logs)
         self.current_log_index = 0
-        self.total_logs = len(self.thread.logs)
+        self.total_logs = total_logs
+
         self.full_logs = self.thread.logs.copy()
 
         self.process_next_batch()
@@ -264,7 +155,7 @@ class LogViewer(QMainWindow):
             cursor.movePosition(QTextCursor.End)
             char_format = self.create_char_format(fg_color, bg_color)
             cursor.insertText(text, char_format)
-        cursor.insertText("\n" + "-" * 80 + "\n", self.create_char_format(QColor('black'), QColor('#E0E0E0')))
+        cursor.insertText("\n" + "-"*80 + "\n", self.create_char_format(QColor('black'), QColor('#E0E0E0')))
         self.text_edit.verticalScrollBar().setValue(self.text_edit.verticalScrollBar().maximum())
 
     def filter_logs(self, level):
@@ -273,6 +164,7 @@ class LogViewer(QMainWindow):
             return
 
         self.current_filter = level
+        self.reset_statistics()  # Сброс статистики перед применением фильтра
         self.show_filter_progress_dialog()
         self.text_edit.clear()
 
@@ -319,6 +211,7 @@ class LogViewer(QMainWindow):
             return
 
         self.current_filter = None
+        self.reset_statistics()  # Сброс статистики при сбросе фильтра
         self.show_filter_progress_dialog()
         self.text_edit.clear()
 
@@ -326,6 +219,10 @@ class LogViewer(QMainWindow):
         self.total_logs = len(self.full_logs)
 
         QTimer.singleShot(0, self.process_filtered_logs)
+
+    def reset_statistics(self):
+        """Сбрасывает счетчики статистики логов."""
+        self.level_counts = {level: 0 for level in ["INFO", "WARNING", "ERROR", "CRITICAL", "DEBUG"]}
 
     def update_statistics(self):
         button_colors = {
@@ -336,9 +233,7 @@ class LogViewer(QMainWindow):
             'DEBUG': '#00B2FF'
         }
 
-        stats_text = "\n".join(
-            f"<span style='color: {button_colors[level]};'>{level}: {count}</span>" for level, count in
-            self.level_counts.items())
+        stats_text = "\n".join(f"<span style='color: {button_colors[level]};'>{level}: {count}</span>" for level, count in self.level_counts.items())
         self.stats_label.setText(f"Log Levels Count:<br>{stats_text}")
 
     def create_char_format(self, fg_color, bg_color):
@@ -363,9 +258,8 @@ class LogViewer(QMainWindow):
     def handle_error(self, error_message):
         QMessageBox.critical(self, "Error", f"An error occurred: {error_message}")
 
-
 if __name__ == '__main__':
-    app = QApplication(sys.argv)
+    app = QApplication([])
     viewer = LogViewer()
     viewer.show()
-    sys.exit(app.exec_())
+    app.exec_()
