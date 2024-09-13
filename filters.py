@@ -17,7 +17,6 @@ class LogFilter:
     def filter_logs(self, level):
         if not self.full_logs:
             QMessageBox.warning(None, "No Logs Loaded", "No logs have been loaded. Please open a log file first.")
-            print("DEBUG: No logs loaded. self.full_logs is empty.")
             return
 
         self.current_filter = level
@@ -27,7 +26,6 @@ class LogFilter:
 
         self.current_log_index = 0
         self.total_logs = len(self.full_logs)
-        print(f"DEBUG: Filtering logs for level: {self.current_filter}, total logs: {self.total_logs}")
 
         QTimer.singleShot(0, self.process_filtered_logs)
 
@@ -70,7 +68,6 @@ class LogFilter:
 
         self.current_log_index = 0
         self.total_logs = len(self.full_logs)
-        print(f"DEBUG: Resetting filter, total logs: {self.total_logs}")
 
         QTimer.singleShot(0, self.process_filtered_logs)
 

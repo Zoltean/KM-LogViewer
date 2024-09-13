@@ -2,8 +2,8 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QTextEdit, QPushButton, QFileDialog,
     QVBoxLayout, QWidget, QLabel, QHBoxLayout, QMessageBox
 )
-from PyQt5.QtGui import QTextCharFormat, QColor
 from PyQt5.QtCore import QTimer
+from search_dialog import SearchDialog
 from parser import LogProcessingThread
 from utils import CustomProgressDialog
 from filters import LogFilter
@@ -13,18 +13,17 @@ class LogViewer(QMainWindow):
         super().__init__()
 
         self.full_logs = []
+        self.filtered_logs = []
         self.level_counts = {level: 0 for level in ["INFO", "WARNING", "ERROR", "CRITICAL", "DEBUG"]}
         self.text_edit = None
         self.log_filter = None
 
         self.initUI()
-
         self.initialize_log_filter()
-
         self.center()
 
     def initUI(self):
-        self.setWindowTitle('Checkbox Kasa Log Viewer v0.0.3')
+        self.setWindowTitle('Checkbox Kasa Log Viewer v0.1.0')
         self.setGeometry(100, 100, 1200, 800)
 
         self.text_edit = QTextEdit(self)
@@ -33,7 +32,7 @@ class LogViewer(QMainWindow):
 
         self.open_file_button = self.create_button('Open Log File', self.open_file, "#4CAF50")
         self.reset_button = self.create_button('RESET', self.reset_filter, "#f44336")
-        self.search_button = self.create_button('Search Logs', self.search_not_available, "#2196F3")
+        self.search_button = self.create_button('Search Logs', self.open_search_dialog, "#2196F3")
 
         self.stats_label = QLabel(self)
         self.stats_label.setStyleSheet("font-size: 16px; padding: 5px;")
@@ -93,8 +92,38 @@ class LogViewer(QMainWindow):
         button.clicked.connect(handler)
         return button
 
-    def search_not_available(self):
-        QMessageBox.information(self, "Search Logs", "Функционал поиска в разработке.")
+    def open_search_dialog(self):
+        self.search_dialog = SearchDialog(self)
+        self.search_dialog.exec_()
+
+    def filter_logs(self, search_text):
+        def log_to_string(log):
+            if isinstance(log[0], tuple):
+                return ''.join(str(item) for item in log[0])
+            else:
+                return ''.join(str(item) for item in log[0])
+
+        self.filtered_logs = [
+            log for log in self.full_logs
+            if search_text.lower() in log_to_string(log).lower()
+        ]
+
+        if not self.filtered_logs:
+            QMessageBox.information(self, "Search Results", "No results found for the search term.")
+            self.text_edit.clear()
+        else:
+            self.process_filtered_logs()
+
+    def process_filtered_logs(self):
+        self.text_edit.clear()
+        self.level_counts = {level: 0 for level in self.level_counts}
+
+        for log_parts, level in self.filtered_logs:
+            self.log_filter.append_log_parts(log_parts)
+            if level in self.level_counts:
+                self.level_counts[level] += 1
+
+        self.update_statistics()
 
     def center(self):
         screen = QApplication.primaryScreen()
@@ -149,11 +178,9 @@ class LogViewer(QMainWindow):
         self.level_counts = {level: 0 for level in self.level_counts}
 
         if not self.thread.logs:
-            print("DEBUG: No logs loaded. self.thread.logs is empty.")
             return
 
         self.full_logs = self.thread.logs.copy()
-        print(f"DEBUG: Logs loaded: {len(self.full_logs)} entries")
         self.log_filter.full_logs = self.full_logs
         self.log_filter.current_log_index = 0
         self.log_filter.total_logs = len(self.full_logs)
@@ -177,7 +204,8 @@ class LogViewer(QMainWindow):
             if level in self.level_counts:
                 self.level_counts[level] += 1
 
-        self.update_progress_dialog.progress_bar.setValue(int(((end_index) / self.log_filter.total_logs) * 100))
+        progress_value = int(((end_index) / self.log_filter.total_logs) * 100)
+        self.update_progress_dialog.progress_bar.setValue(progress_value)
 
         self.log_filter.current_log_index = end_index
 
@@ -192,21 +220,17 @@ class LogViewer(QMainWindow):
             'DEBUG': '#00B2FF'
         }
 
-        stats_text = "\n".join(
-            f"<span style='color: {button_colors[level]};'>{level}: {count}</span>" for level, count in
-            self.level_counts.items())
+        try:
+            stats_text = "\n".join(
+                f"<span style='color: {button_colors[level]};'>{level}: {count}</span>"
+                for level, count in self.level_counts.items()
+                if isinstance(count, int) and isinstance(level, str)
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Error generating stats text: {e}")
+            raise
+
         self.stats_label.setText(f"Log Levels Count:<br>{stats_text}")
-
-    def create_char_format(self, fg_color, bg_color):
-        char_format = QTextCharFormat()
-        char_format.setForeground(fg_color)
-        char_format.setBackground(bg_color)
-
-        font = char_format.font()
-        font.setPointSize(12)
-        char_format.setFont(font)
-
-        return char_format
 
     def reset_filter(self):
         if self.log_filter:
