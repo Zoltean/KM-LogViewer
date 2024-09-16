@@ -19,7 +19,7 @@ class LogViewer(QMainWindow):
         self.text_edit = None
         self.log_filter = None
         self.search_term = ''
-        self.filter_states = {level: True for level in self.level_counts}  # Track filter states
+        self.filter_states = {level: True for level in self.level_counts}
 
         self.initUI()
         self.initialize_log_filter()
@@ -55,14 +55,14 @@ class LogViewer(QMainWindow):
             for level in button_colors
         }
 
-        # Set INFO and DEBUG buttons as initially 'off'
         self.filter_buttons = filter_buttons
-        self.filter_states = {level: True for level in button_colors}  # Track filter states
+        self.filter_states = {level: True for level in button_colors}
         self.filter_states['INFO'] = False
         self.filter_states['DEBUG'] = False
         self.filter_states['WARNING'] = False
 
-        self.update_button_styles()  # Apply initial styles based on the filter states
+        self.update_button_styles()
+        self.set_filter_buttons_enabled(False)
 
         file_layout = QVBoxLayout()
         file_layout.addWidget(self.open_file_button)
@@ -103,6 +103,11 @@ class LogViewer(QMainWindow):
             f"background-color: {color}; color: white; font-size: 14pt; padding: 5px; border-radius: 5px;")
         button.clicked.connect(handler)
         return button
+
+    def set_filter_buttons_enabled(self, enabled):
+        for button in self.filter_buttons.values():
+            button.setEnabled(enabled)
+        self.reset_button.setEnabled(enabled)
 
     def open_search_dialog(self):
         self.search_dialog = SearchDialog(self)
@@ -164,6 +169,7 @@ class LogViewer(QMainWindow):
     def open_file(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Select Log File", "", "Log Files (*.log)")
         if file_path:
+            self.set_filter_buttons_enabled(False)
             self.show_progress_dialog()
             self.thread = LogProcessingThread(file_path)
             self.thread.progress.connect(self.update_progress)
@@ -214,6 +220,7 @@ class LogViewer(QMainWindow):
         if self.log_filter.current_log_index >= self.log_filter.total_logs:
             self.hide_update_progress_dialog()
             self.update_statistics()
+            self.set_filter_buttons_enabled(True)
             return
 
         batch_size = 20
@@ -221,7 +228,7 @@ class LogViewer(QMainWindow):
 
         for idx in range(self.log_filter.current_log_index, end_index):
             log_parts, level = self.full_logs[idx]
-            if self.filter_states[level]:  # Apply filter based on button state
+            if self.filter_states[level]:
                 self.log_filter.append_log_parts(log_parts)
 
             if level in self.level_counts:
@@ -258,14 +265,12 @@ class LogViewer(QMainWindow):
     def reset_filter(self):
         if self.log_filter:
             self.log_filter.reset_filter()
-            # Reset filter states to show all logs
             self.filter_states = {level: True for level in self.filter_states}
             self.update_button_styles()
             self.process_logs()
 
     def toggle_filter(self, level):
         if level in self.filter_states:
-            # Toggle filter state
             self.filter_states[level] = not self.filter_states[level]
             self.update_button_styles()
             self.process_logs()
@@ -277,7 +282,7 @@ class LogViewer(QMainWindow):
                     f"background-color: {self.get_button_color(level)}; color: white; font-size: 14pt; padding: 5px; border-radius: 5px;")
             else:
                 button.setStyleSheet(
-                    f"background-color: #D3D3D3; color: black; font-size: 14pt; padding: 5px; border-radius: 5px;")  # Gray color for 'off' state
+                    f"background-color: #D3D3D3; color: black; font-size: 14pt; padding: 5px; border-radius: 5px;")
 
     def get_button_color(self, level):
         button_colors = {

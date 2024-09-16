@@ -22,7 +22,7 @@ class SearchDialog(QDialog):
         self.search_input = QLineEdit(self)
         self.search_input.setPlaceholderText('Type search term here...')
         self.search_input.setStyleSheet("font-size: 14pt; border: 1px solid #ccc; border-radius: 5px;")
-        self.search_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)  # Make it expand horizontally
+        self.search_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         input_layout.addWidget(self.search_input)
 
         self.search_button = QPushButton('Search', self)
