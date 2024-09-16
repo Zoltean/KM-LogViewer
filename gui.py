@@ -26,7 +26,7 @@ class LogViewer(QMainWindow):
         self.center()
 
     def initUI(self):
-        self.setWindowTitle('Checkbox Kasa Log Viewer v0.1.0')
+        self.setWindowTitle('Checkbox Kasa Log Viewer v0.1.1')
         self.setGeometry(100, 100, 1200, 800)
 
         self.text_edit = QTextEdit(self)
