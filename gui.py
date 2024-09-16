@@ -19,6 +19,7 @@ class LogViewer(QMainWindow):
         self.text_edit = None
         self.log_filter = None
         self.search_term = ''
+        self.filter_states = {level: True for level in self.level_counts}  # Track filter states
 
         self.initUI()
         self.initialize_log_filter()
@@ -50,9 +51,18 @@ class LogViewer(QMainWindow):
         }
 
         filter_buttons = {
-            level: self.create_button(level, lambda _, lvl=level: self.apply_filter(lvl), color)
-            for level, color in button_colors.items()
+            level: self.create_button(level, lambda _, lvl=level: self.toggle_filter(lvl), button_colors[level])
+            for level in button_colors
         }
+
+        # Set INFO and DEBUG buttons as initially 'off'
+        self.filter_buttons = filter_buttons
+        self.filter_states = {level: True for level in button_colors}  # Track filter states
+        self.filter_states['INFO'] = False
+        self.filter_states['DEBUG'] = False
+        self.filter_states['WARNING'] = False
+
+        self.update_button_styles()  # Apply initial styles based on the filter states
 
         file_layout = QVBoxLayout()
         file_layout.addWidget(self.open_file_button)
@@ -211,7 +221,7 @@ class LogViewer(QMainWindow):
 
         for idx in range(self.log_filter.current_log_index, end_index):
             log_parts, level = self.full_logs[idx]
-            if not self.log_filter.current_filter or level == self.log_filter.current_filter:
+            if self.filter_states[level]:  # Apply filter based on button state
                 self.log_filter.append_log_parts(log_parts)
 
             if level in self.level_counts:
@@ -248,10 +258,36 @@ class LogViewer(QMainWindow):
     def reset_filter(self):
         if self.log_filter:
             self.log_filter.reset_filter()
+            # Reset filter states to show all logs
+            self.filter_states = {level: True for level in self.filter_states}
+            self.update_button_styles()
+            self.process_logs()
 
-    def apply_filter(self, level):
-        if self.log_filter:
-            self.log_filter.filter_logs(level)
+    def toggle_filter(self, level):
+        if level in self.filter_states:
+            # Toggle filter state
+            self.filter_states[level] = not self.filter_states[level]
+            self.update_button_styles()
+            self.process_logs()
+
+    def update_button_styles(self):
+        for level, button in self.filter_buttons.items():
+            if self.filter_states[level]:
+                button.setStyleSheet(
+                    f"background-color: {self.get_button_color(level)}; color: white; font-size: 14pt; padding: 5px; border-radius: 5px;")
+            else:
+                button.setStyleSheet(
+                    f"background-color: #D3D3D3; color: black; font-size: 14pt; padding: 5px; border-radius: 5px;")  # Gray color for 'off' state
+
+    def get_button_color(self, level):
+        button_colors = {
+            'INFO': 'green',
+            'WARNING': '#FFA500',
+            'ERROR': 'red',
+            'CRITICAL': 'magenta',
+            'DEBUG': '#00B2FF'
+        }
+        return button_colors.get(level, 'grey')
 
 if __name__ == '__main__':
     app = QApplication([])
