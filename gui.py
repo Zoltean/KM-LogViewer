@@ -123,8 +123,6 @@ class LogViewer(QMainWindow):
             if level in self.level_counts:
                 self.level_counts[level] += 1
 
-        self.update_statistics()
-
     def center(self):
         screen = QApplication.primaryScreen()
         screen_geometry = screen.geometry()
