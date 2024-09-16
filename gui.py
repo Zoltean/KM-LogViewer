@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import (
     QVBoxLayout, QWidget, QLabel, QHBoxLayout, QMessageBox
 )
 from PyQt5.QtCore import QTimer
+from PyQt5.QtGui import QTextCursor, QTextCharFormat, QColor
 from search_dialog import SearchDialog
 from parser import LogProcessingThread
 from utils import CustomProgressDialog
@@ -17,6 +18,7 @@ class LogViewer(QMainWindow):
         self.level_counts = {level: 0 for level in ["INFO", "WARNING", "ERROR", "CRITICAL", "DEBUG"]}
         self.text_edit = None
         self.log_filter = None
+        self.search_term = ''
 
         self.initUI()
         self.initialize_log_filter()
@@ -48,7 +50,7 @@ class LogViewer(QMainWindow):
         }
 
         filter_buttons = {
-            level: self.create_button(level, lambda _, lvl=level: self.log_filter.filter_logs(lvl), color)
+            level: self.create_button(level, lambda _, lvl=level: self.apply_filter(lvl), color)
             for level, color in button_colors.items()
         }
 
@@ -83,7 +85,7 @@ class LogViewer(QMainWindow):
         self.setCentralWidget(container)
 
     def initialize_log_filter(self):
-        self.log_filter = LogFilter(self.text_edit, self.level_counts, self.full_logs, self.update_statistics)
+        self.log_filter = LogFilter(self.text_edit, self.level_counts, self.update_statistics)
 
     def create_button(self, text, handler, color):
         button = QPushButton(text, self)
@@ -97,15 +99,10 @@ class LogViewer(QMainWindow):
         self.search_dialog.exec_()
 
     def filter_logs(self, search_text):
-        def log_to_string(log):
-            if isinstance(log[0], tuple):
-                return ''.join(str(item) for item in log[0])
-            else:
-                return ''.join(str(item) for item in log[0])
-
+        self.search_term = search_text
         self.filtered_logs = [
             log for log in self.full_logs
-            if search_text.lower() in log_to_string(log).lower()
+            if search_text.lower() in self.log_to_string(log).lower()
         ]
 
         if not self.filtered_logs:
@@ -113,6 +110,13 @@ class LogViewer(QMainWindow):
             self.text_edit.clear()
         else:
             self.process_filtered_logs()
+            self.highlight_search_term()
+
+    def log_to_string(self, log):
+        if isinstance(log[0], tuple):
+            return ''.join(str(item) for item in log[0])
+        else:
+            return ''.join(str(item) for item in log[0])
 
     def process_filtered_logs(self):
         self.text_edit.clear()
@@ -122,6 +126,19 @@ class LogViewer(QMainWindow):
             self.log_filter.append_log_parts(log_parts)
             if level in self.level_counts:
                 self.level_counts[level] += 1
+
+    def highlight_search_term(self):
+        cursor = self.text_edit.textCursor()
+        cursor.movePosition(QTextCursor.Start)
+        format = QTextCharFormat()
+        format.setBackground(QColor('yellow'))
+
+        while not cursor.isNull() and not cursor.atEnd():
+            cursor = self.text_edit.document().find(self.search_term, cursor)
+            if not cursor.isNull():
+                cursor.mergeCharFormat(format)
+                cursor.setPosition(cursor.position() + len(self.search_term))
+                cursor.movePosition(QTextCursor.StartOfBlock, QTextCursor.KeepAnchor)
 
     def center(self):
         screen = QApplication.primaryScreen()
@@ -179,9 +196,7 @@ class LogViewer(QMainWindow):
             return
 
         self.full_logs = self.thread.logs.copy()
-        self.log_filter.full_logs = self.full_logs
-        self.log_filter.current_log_index = 0
-        self.log_filter.total_logs = len(self.full_logs)
+        self.log_filter.set_full_logs(self.full_logs)
 
         self.process_next_batch()
 
@@ -233,6 +248,10 @@ class LogViewer(QMainWindow):
     def reset_filter(self):
         if self.log_filter:
             self.log_filter.reset_filter()
+
+    def apply_filter(self, level):
+        if self.log_filter:
+            self.log_filter.filter_logs(level)
 
 if __name__ == '__main__':
     app = QApplication([])

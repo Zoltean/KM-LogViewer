@@ -4,15 +4,21 @@ from PyQt5.QtCore import QTimer
 from utils import CustomProgressDialog
 
 class LogFilter:
-    def __init__(self, text_edit, level_counts, full_logs, update_statistics):
+    def __init__(self, text_edit, level_counts, update_statistics):
         self.text_edit = text_edit
         self.level_counts = level_counts
-        self.full_logs = full_logs
         self.update_statistics = update_statistics
         self.current_filter = None
+        self.full_logs = []
         self.current_log_index = 0
         self.total_logs = 0
         self.filter_progress_dialog = None
+
+    def set_full_logs(self, full_logs):
+        """Set the full logs and initialize filtering state."""
+        self.full_logs = full_logs
+        self.current_log_index = 0
+        self.total_logs = len(self.full_logs)
 
     def filter_logs(self, level):
         if not self.full_logs:
@@ -23,7 +29,6 @@ class LogFilter:
         self.reset_statistics()
         self.show_filter_progress_dialog()
         self.text_edit.clear()
-
         self.current_log_index = 0
         self.total_logs = len(self.full_logs)
 
@@ -40,6 +45,7 @@ class LogFilter:
     def process_filtered_logs(self):
         if self.current_log_index >= self.total_logs:
             self.hide_filter_progress_dialog()
+            self.update_statistics()
             return
 
         batch_size = 10
